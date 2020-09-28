@@ -49,13 +49,13 @@ func main() {
 	// create random event
 	eventDate := time.Now()
 	eventName := eventDate.Format("Mon 2 Jan 15:04:05")
-	_, err = repo.insertEvent(eventName, eventDate)
+	_, err = repo.insertEvent(Event{Name: eventName, Date: eventDate})
 	if err != nil {
 		log.Fatalf("cannot create event: %v", err)
 	}
 
 	// modify first event with now
-	if err := repo.updateEvent(1, eventName, eventDate); err != nil {
+	if err := repo.updateEvent(Event{ID: 1, Name: eventName, Date: eventDate}); err != nil {
 		log.Fatalf("cannot update event: %v", err)
 	}
 
