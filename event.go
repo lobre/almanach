@@ -8,7 +8,7 @@ type Event struct {
 	Date time.Time
 }
 
-func (r Repo) getEvents() ([]Event, error) {
+func (r repo) getEvents() ([]Event, error) {
 	events := []Event{}
 
 	rows, err := r.db.Query("SELECT id, name, date FROM events order by id")
@@ -33,7 +33,7 @@ func (r Repo) getEvents() ([]Event, error) {
 	return events, err
 }
 
-func (r Repo) insertEvent(e Event) (int, error) {
+func (r repo) insertEvent(e Event) (int, error) {
 	var id int
 	err := r.db.QueryRow("INSERT INTO events(name, date) VALUES($1, $2) RETURNING id", e.Name, e.Date).Scan(&id)
 	if err != nil {
@@ -42,14 +42,14 @@ func (r Repo) insertEvent(e Event) (int, error) {
 	return id, nil
 }
 
-func (r Repo) updateEvent(e Event) error {
+func (r repo) updateEvent(e Event) error {
 	if _, err := r.db.Exec("UPDATE events set name=$1, date=$2 WHERE id=$3", e.Name, e.Date, e.ID); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r Repo) removeEvent(id int) error {
+func (r repo) removeEvent(id int) error {
 	if _, err := r.db.Exec("DELETE FROM events where id = $1", id); err != nil {
 		return err
 	}

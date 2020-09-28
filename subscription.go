@@ -6,7 +6,7 @@ type Subscription struct {
 	Comment    string
 }
 
-func (r Repo) getSubscriptions(eventID int) ([]Subscription, error) {
+func (r repo) getSubscriptions(eventID int) ([]Subscription, error) {
 	subs := []Subscription{}
 
 	rows, err := r.db.Query("SELECT subscriber, here, comment FROM subscriptions WHERE event_id = $1", eventID)
@@ -31,7 +31,7 @@ func (r Repo) getSubscriptions(eventID int) ([]Subscription, error) {
 	return subs, err
 }
 
-func (r Repo) insertSubscription(eventID int, sub Subscription) error {
+func (r repo) insertSubscription(eventID int, sub Subscription) error {
 	_, err := r.db.Exec("INSERT INTO subscriptions(event_id, subscriber, here, comment)"+
 		"VALUES($1, $2, $3, $4)", eventID, sub.Subscriber, sub.Here, sub.Comment)
 	if err != nil {
@@ -40,7 +40,7 @@ func (r Repo) insertSubscription(eventID int, sub Subscription) error {
 	return nil
 }
 
-func (r Repo) updateSubscription(eventID int, sub Subscription) error {
+func (r repo) updateSubscription(eventID int, sub Subscription) error {
 	_, err := r.db.Exec("UPDATE subscriptions set here = $1, comment = $2"+
 		"WHERE event_id = $3 AND subscriber = $4", sub.Here, sub.Comment, eventID, sub.Subscriber)
 	if err != nil {
@@ -49,7 +49,7 @@ func (r Repo) updateSubscription(eventID int, sub Subscription) error {
 	return nil
 }
 
-func (r Repo) removeSubscription(eventID int, sub string) error {
+func (r repo) removeSubscription(eventID int, sub string) error {
 	_, err := r.db.Exec("DELETE FROM subscription where event_id = $1 AND subscriber = $2", eventID, sub)
 	if err != nil {
 		return err

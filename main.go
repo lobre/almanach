@@ -4,11 +4,9 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
-	"strings"
-	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -22,13 +20,15 @@ func main() {
 
 	sqlImport := flag.String("sql-import", "", "execute sql file and exit")
 
+	httpAddr := flag.String("http-addr", ":8080", "http server address")
+
 	flag.Parse()
 
 	connStr := fmt.Sprintf("host=%s port=%d user=%s "+
 		"password=%s dbname=%s sslmode=disable",
 		*dbHost, *dbPort, *dbUser, *dbPass, *dbName)
 
-	repo := Repo{}
+	repo := repo{}
 
 	var err error
 	repo.db, err = sql.Open("postgres", connStr)
@@ -46,50 +46,10 @@ func main() {
 		os.Exit(0)
 	}
 
-	// create random event
-	eventDate := time.Now()
-	eventName := eventDate.Format("Mon 2 Jan 15:04:05")
-	_, err = repo.insertEvent(Event{Name: eventName, Date: eventDate})
-	if err != nil {
-		log.Fatalf("cannot create event: %v", err)
+	srv := newServer(&repo)
+	srv.routes()
+
+	if err := http.ListenAndServe(*httpAddr, srv.router); err != nil {
+		log.Fatalf("cannot start http server: %v", err)
 	}
-
-	// modify first event with now
-	if err := repo.updateEvent(Event{ID: 1, Name: eventName, Date: eventDate}); err != nil {
-		log.Fatalf("cannot update event: %v", err)
-	}
-
-	// display events
-	events, err := repo.getEvents()
-	if err != nil {
-		log.Fatalf("cannot gather events: %v", err)
-	}
-
-	for _, event := range events {
-		log.Printf("event %d is: %s", event.ID, event.Name)
-	}
-}
-
-type Repo struct {
-	db *sql.DB
-}
-
-// execFile will parse a sql file, extract each query
-// by splitting to ";" and execute them onto the database.
-// This is not a robust way because it is not a proper sql parser
-// but it will be sufficient for the needs of this project.
-func (r Repo) execFile(path string) error {
-	f, err := ioutil.ReadFile(path)
-	if err != nil {
-		return err
-	}
-
-	reqs := strings.Split(string(f), ";")
-	for _, req := range reqs {
-		if _, err := r.db.Exec(req); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
