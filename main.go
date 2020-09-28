@@ -2,46 +2,76 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
-type config struct {
-	dbhost string
-	dbport int
-	dbuser string
-	dbpass string
-	dbname string
+func main() {
+	connStr := fmt.Sprintf("host=%s port=%d user=%s "+
+		"password=%s dbname=%s sslmode=disable",
+		"localhost", 5432, "postgres", "postgres", "postgres")
+
+	repo := Repo{}
+
+	var err error
+	repo.db, err = sqlx.Connect("postgres", connStr)
+	if err != nil {
+		log.Fatalf("cannot connect to the db: %v", err)
+	}
+	defer repo.db.Close()
+
+	ss, err := repo.subscriptions(Event{ID: 1})
+	if err != nil {
+		log.Fatalf("cannot gather subscriptions: %v", err)
+	}
+
+	for _, s := range ss {
+		spew.Dump(s)
+	}
 }
 
-schema := `CREATE TABLE events (
-	name text,
-	description text);`
+type Event struct {
+	ID   int
+	Name string
+	Date time.Time
+}
 
-func main() {
-	conf := config{
-		dbhost: "localhost",
-		dbport: 5432,
-		dbuser: "postgres",
-		dbpass: "pass",
-		dbname: "postgres",
+type Subscription struct {
+	Subscriber string
+	Here       bool
+	Comment    string
+	EventID    int `db:"event_id"`
+}
+
+type Repo struct {
+	db *sqlx.DB
+}
+
+func (r Repo) events() ([]Event, error) {
+	var ee []Event
+
+	if err := r.db.Select(&ee, "SELECT * from events"); err != nil {
+		return nil, err
 	}
 
-	dataSrc := fmt.Sprintf("host=%s port=%d user=%s "+
-		"password=%s dbname=%s sslmode=disable",
-		conf.dbhost, conf.dbport, conf.dbuser, conf.dbpass, conf.dbname)
+	return ee, nil
+}
 
-	var db *sqlx.DB
-	db, err := sqlx.Open("postgres", dataSrc)
+func (r Repo) subscriptions(e Event) ([]Subscription, error) {
+	var ss []Subscription
+
+	stmt, err := r.db.PrepareNamed(`SELECT * FROM subscriptions WHERE event_id = :id`)
 	if err != nil {
-		panic(err)
-	}
-	defer db.Close()
-
-	if err := db.Ping(); err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	fmt.Println("db connection success")
+	if err := stmt.Select(&ss, e); err != nil {
+		return nil, err
+	}
+
+	return ss, nil
 }
