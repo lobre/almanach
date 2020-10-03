@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"flag"
 	"fmt"
 	"log"
@@ -12,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v4/stdlib"
 )
 
 func main() {
@@ -35,23 +34,20 @@ func run() error {
 	)
 	flag.Parse()
 
-	logger = log.New(os.Stdout, "", log.Lshortfile|log.Ldate|log.Ltime)
+	logger := log.New(os.Stdout, "", log.Lshortfile|log.Ldate|log.Ltime)
 
 	connStr := fmt.Sprintf("host=%s port=%d user=%s "+
 		"password=%s dbname=%s sslmode=disable",
 		*dbHost, *dbPort, *dbUser, *dbPass, *dbName)
 
-	repo := repo{}
-
-	var err error
-	repo.db, err = sql.Open("postgres", connStr)
+	db, err := Open(connStr)
 	if err != nil {
 		return fmt.Errorf("cannot connect to the db: %w", err)
 	}
-	defer repo.db.Close()
+	defer db.Close()
 
 	if *sqlImport != "" {
-		if err := repo.execFile(*sqlImport); err != nil {
+		if err := db.execFile(*sqlImport); err != nil {
 			return fmt.Errorf("can't import sql: %w", err)
 		}
 
@@ -59,9 +55,11 @@ func run() error {
 		os.Exit(0)
 	}
 
+	app := NewApp(db, logger)
+
 	server := &http.Server{
 		Addr:         *listenAddr,
-		Handler:      withLogger(logger, NewApp(nil)),
+		Handler:      withAccessLogs(logger, app),
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  15 * time.Second,
@@ -101,7 +99,7 @@ func run() error {
 	return nil
 }
 
-func withLogger(logger *log.Logger, next http.Handler) http.Handler {
+func withAccessLogs(logger *log.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger.Printf("%s: %s %s", r.RemoteAddr, r.Method, r.URL)
 		next.ServeHTTP(w, r)

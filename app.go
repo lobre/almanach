@@ -1,18 +1,17 @@
 package main
 
 import (
-	"database/sql"
 	"log"
 	"net/http"
 )
 
 type App struct {
 	router *http.ServeMux
-	db     *sql.DB
+	db     *DB
 	logger *log.Logger
 }
 
-func NewApp(db *sql.DB, logger *log.Logger) *App {
+func NewApp(db *DB, logger *log.Logger) *App {
 	app := &App{
 		router: http.NewServeMux(),
 		db:     db,
