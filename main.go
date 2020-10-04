@@ -1,15 +1,10 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
 )
@@ -51,57 +46,11 @@ func run() error {
 			return fmt.Errorf("can't import sql: %w", err)
 		}
 
-		log.Printf("successfully imported %s", *sqlImport)
+		logger.Printf("successfully imported %s", *sqlImport)
 		os.Exit(0)
 	}
 
-	app := NewApp(db, logger)
-
-	server := &http.Server{
-		Addr:         *listenAddr,
-		Handler:      withAccessLogs(logger, app),
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  15 * time.Second,
-	}
-
-	serverErrors := make(chan error, 1)
-	go func() {
-		logger.Printf("server listening on %s", *listenAddr)
-		serverErrors <- server.ListenAndServe()
-	}()
-
-	shutdown := make(chan os.Signal, 1)
-	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
-
-	select {
-	case err := <-serverErrors:
-		return fmt.Errorf("error when starting server: %w", err)
-
-	case <-shutdown:
-		logger.Println("start server shutdown")
-
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		go func() {
-			<-shutdown
-			cancel()
-		}()
-
-		if err := server.Shutdown(ctx); err != nil {
-			logger.Print("graceful shutdown was interrupted")
-			if err = server.Close(); err != nil {
-				return fmt.Errorf("error when stopping server: %w", err)
-			}
-		}
-	}
-
-	return nil
-}
-
-func withAccessLogs(logger *log.Logger, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger.Printf("%s: %s %s", r.RemoteAddr, r.Method, r.URL)
-		next.ServeHTTP(w, r)
-	})
+	app := NewApp(db)
+	srv := NewServer(*listenAddr, app)
+	return srv.ServeUntilSignal()
 }
