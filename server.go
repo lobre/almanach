@@ -13,12 +13,11 @@ import (
 
 type Server struct {
 	*http.Server
-	Logger *log.Logger
+	logger *log.Logger
 }
 
-func NewServer(listenAddr string, h http.Handler) *Server {
-	srv := Server{}
-	srv.Logger = log.New(os.Stderr, "", log.LstdFlags)
+func NewServer(listenAddr string, h http.Handler, logger *log.Logger) *Server {
+	srv := Server{logger: logger}
 	srv.Server = &http.Server{
 		Addr:         listenAddr,
 		Handler:      srv.withAccessLogs(h),
@@ -34,7 +33,7 @@ func NewServer(listenAddr string, h http.Handler) *Server {
 func (srv *Server) ServeUntilSignal() error {
 	serverErrors := make(chan error, 1)
 	go func() {
-		srv.Logger.Printf("server listening on %s", srv.Addr)
+		srv.logger.Printf("server listening on %s", srv.Addr)
 		serverErrors <- srv.Server.ListenAndServe()
 	}()
 
@@ -46,7 +45,7 @@ func (srv *Server) ServeUntilSignal() error {
 		return fmt.Errorf("error when starting server: %w", err)
 
 	case <-shutdown:
-		srv.Logger.Println("start server shutdown")
+		srv.logger.Println("start server shutdown")
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -56,7 +55,7 @@ func (srv *Server) ServeUntilSignal() error {
 		}()
 
 		if err := srv.Server.Shutdown(ctx); err != nil {
-			srv.Logger.Print("graceful shutdown was interrupted")
+			srv.logger.Print("graceful shutdown was interrupted")
 			if err = srv.Server.Close(); err != nil {
 				return fmt.Errorf("error when stopping server: %w", err)
 			}
@@ -68,7 +67,7 @@ func (srv *Server) ServeUntilSignal() error {
 
 func (srv *Server) withAccessLogs(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		srv.Logger.Printf("%s: %s %s", r.RemoteAddr, r.Method, r.URL)
+		srv.logger.Printf("%s: %s %s", r.RemoteAddr, r.Method, r.URL)
 		next.ServeHTTP(w, r)
 	})
 }

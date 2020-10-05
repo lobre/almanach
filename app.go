@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
 )
 
 // App provides application-level context.
@@ -15,21 +14,28 @@ import (
 type App struct {
 	router *http.ServeMux
 	db     *DB
-	Logger *log.Logger
+	logger *log.Logger
+
+	indexView *View
 }
 
-func NewApp(db *DB) *App {
+func NewApp(db *DB, logger *log.Logger) *App {
 	app := &App{
 		router: http.NewServeMux(),
 		db:     db,
-		Logger: log.New(os.Stderr, "", log.LstdFlags),
+		logger: logger,
 	}
 	app.setupRoutes()
+	app.setupViews()
 	return app
 }
 
 func (app *App) setupRoutes() {
 	app.router.HandleFunc("/", app.handleIndex())
+}
+
+func (app *App) setupViews() {
+	app.indexView = NewView("base", "views/index.html")
 }
 
 func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {

@@ -50,11 +50,7 @@ func run() error {
 		os.Exit(0)
 	}
 
-	app := NewApp(db)
-	app.Logger = logger
-
-	srv := NewServer(*listenAddr, app)
-	srv.Logger = logger
-
+	app := NewApp(db, logger)
+	srv := NewServer(*listenAddr, app, logger)
 	return srv.ServeUntilSignal()
 }
