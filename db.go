@@ -12,7 +12,7 @@ type DB struct {
 }
 
 func Open(connStr string) (*DB, error) {
-	db, err := sql.Open("postgres", connStr)
+	db, err := sql.Open("pgx", connStr)
 	if err != nil {
 		return nil, err
 	}

@@ -28,6 +28,10 @@ func NewApp(db *DB) *App {
 	return app
 }
 
+func (app *App) setupRoutes() {
+	app.router.HandleFunc("/", app.handleIndex())
+}
+
 func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	app.router.ServeHTTP(w, r)
 }
