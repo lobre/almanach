@@ -33,8 +33,6 @@ func run() error {
 	)
 	flag.Parse()
 
-	logger := log.New(os.Stdout, "", log.Lshortfile|log.Ldate|log.Ltime)
-
 	connStr := fmt.Sprintf("host=%s port=%d user=%s "+
 		"password=%s dbname=%s sslmode=disable",
 		*dbHost, *dbPort, *dbUser, *dbPass, *dbName)
@@ -44,6 +42,8 @@ func run() error {
 		return fmt.Errorf("cannot connect to the db: %w", err)
 	}
 	defer db.Close()
+
+	logger := log.New(os.Stdout, "", log.Lshortfile|log.Ldate|log.Ltime)
 
 	app := NewApp(db, logger)
 	srv := NewServer(*addr, app, logger)
