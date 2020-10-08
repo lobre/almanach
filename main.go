@@ -24,8 +24,9 @@ func run() error {
 		dbPass = flag.String("db-pass", "postgres", "database password")
 		dbName = flag.String("db-name", "postgres", "database name")
 
-		sqlImport  = flag.String("sql-import", "", "execute sql file and exit")
-		listenAddr = flag.String("listen-addr", ":8080", "http server address")
+		host       = flag.String("host", "localhost", "http server host")
+		port       = flag.String("port", "8080", "http server port")
+		disableTLS = flag.Bool("disable-tls", false, "switch to http instead of https")
 	)
 	flag.Parse()
 
@@ -41,16 +42,7 @@ func run() error {
 	}
 	defer db.Close()
 
-	if *sqlImport != "" {
-		if err := db.execFile(*sqlImport); err != nil {
-			return fmt.Errorf("can't import sql: %w", err)
-		}
-
-		logger.Printf("successfully imported %s", *sqlImport)
-		os.Exit(0)
-	}
-
 	app := NewApp(db, logger)
-	srv := NewServer(*listenAddr, app, logger)
+	srv := NewServer(*host, *port, app, *disableTLS, logger)
 	return srv.ServeUntilSignal()
 }
