@@ -24,8 +24,8 @@ func run() error {
 		dbPass = flag.String("db-pass", "postgres", "database password")
 		dbName = flag.String("db-name", "postgres", "database name")
 
-		addr   = flag.String("addr", ":8080", "http server address")
-		domain = flag.String("domain", "", "activate self signed or letsencrypt certificate on domain")
+		addr      = flag.String("addr", ":8080", "http server address")
+		tlsDomain = flag.String("tls-domain", "", "activate self signed or letsencrypt certificate on domain")
 	)
 	flag.Parse()
 
@@ -43,8 +43,8 @@ func run() error {
 
 	app := NewApp(db, logger)
 	srv := NewServer(*addr, app, logger)
-	if *domain != "" {
-		srv.ConfigureTLS(*domain)
+	if *tlsDomain != "" {
+		srv.ConfigureTLS(*tlsDomain)
 	}
 	return srv.ServeUntilSignal()
 }

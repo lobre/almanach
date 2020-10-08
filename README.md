@@ -21,7 +21,7 @@ docker exec -i almanach-db psql -U postgres < schema.sql
 
 ## Certs
 
-By default, the server runs with TLS support. So you need to generate self signed certificates in the `certs` directory.
+If you run the server with tls support on a local domain, you will need to generate self signed certificates in the `certs` directory.
 
 ```
 mkdir -p certs
