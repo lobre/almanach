@@ -4,10 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"time"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
+	"github.com/pkg/browser"
 )
 
 func main() {
@@ -25,7 +28,8 @@ func run() error {
 		dbPass = flag.String("db-pass", "postgres", "database password")
 		dbName = flag.String("db-name", "postgres", "database name")
 
-		addr = flag.String("addr", ":8080", "http server address")
+		addr        = flag.String("addr", ":8080", "http server address")
+		openBrowser = flag.Bool("open-browser", true, "open the browser automatically")
 	)
 	flag.Parse()
 
@@ -43,6 +47,27 @@ func run() error {
 
 	app := NewApp(db, logger)
 	server := &http.Server{Addr: *addr, Handler: app}
+
+	if *openBrowser {
+		host, port, err := net.SplitHostPort(*addr)
+		if err != nil {
+			return err
+		}
+
+		if host == "" {
+			host = "localhost"
+		}
+
+		url := fmt.Sprintf("http://%s:%s", host, port)
+
+		time.AfterFunc(100*time.Millisecond, func() {
+			logger.Print("open app in browser")
+			if err := browser.OpenURL(url); err != nil {
+				logger.Print("cannot open browser")
+			}
+		})
+	}
+
 	logger.Printf("starting server on: %s", *addr)
 	return server.ListenAndServe()
 }
