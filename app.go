@@ -35,7 +35,7 @@ func (app *App) setupRoutes() {
 }
 
 func (app *App) setupViews() {
-	app.indexView = NewView("base", "views/index.html")
+	app.indexView = NewView("base", "/views/index.html")
 }
 
 func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {

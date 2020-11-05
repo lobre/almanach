@@ -5,5 +5,6 @@ go 1.15
 require (
 	github.com/jackc/pgx/v4 v4.9.0
 	github.com/lib/pq v1.8.0 // indirect
+	github.com/markbates/pkger v0.17.1
 	github.com/pkg/browser v0.0.0-20180916011732-0a3d74bf9ce4
 )

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
+	"github.com/markbates/pkger"
 	"github.com/pkg/browser"
 )
 
@@ -21,6 +22,8 @@ func main() {
 }
 
 func run() error {
+	pkger.Include("/views")
+
 	var (
 		dbHost = flag.String("db-host", "localhost", "database host")
 		dbPort = flag.Int("db-port", 5432, "database port")
