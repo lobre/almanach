@@ -31,7 +31,7 @@ func NewApp(db *DB, logger *log.Logger) *App {
 }
 
 func (app *App) setupRoutes() {
-	app.router.HandleFunc("/", app.handleIndex())
+	app.router.HandleFunc("/", app.withLogs(app.handleIndex()))
 }
 
 func (app *App) setupViews() {

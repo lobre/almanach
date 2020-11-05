@@ -4,7 +4,7 @@
 <h2>Here is a list of events</h2>
 <ul>
   {{range .Events}}
-  <li>{{.Name}}</li>
+  <li><a href="/events/{{.ID}}">{{.Name}}</a></li>
   {{end}}
 </ul>
 {{end}}
