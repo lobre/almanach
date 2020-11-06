@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"io/ioutil"
 	"net/http"
+	"path/filepath"
 
 	"github.com/markbates/pkger"
 )
@@ -13,20 +14,36 @@ type View struct {
 	layout   string
 }
 
-func NewView(layout string, filenames ...string) *View {
-	t := template.New(layout)
-	s := loadTemplate("/views/layout/" + layout + ".html")
-	template.Must(t.Parse(s))
+func NewView(layout string, views ...string) (*View, error) {
+	lp := filepath.Join("/views/layout", layout+".html")
 
-	for _, filename := range filenames {
-		s = loadTemplate(filename)
-		template.Must(t.Parse(s))
+	paths := []string{lp}
+	for _, v := range views {
+		paths = append(paths, filepath.Join("/views", v+".html"))
+	}
+
+	t := template.New(layout)
+
+	for _, p := range paths {
+		f, err := pkger.Open(p)
+		if err != nil {
+			return nil, err
+		}
+
+		b, err := ioutil.ReadAll(f)
+		if err != nil {
+			return nil, err
+		}
+
+		if _, err := t.Parse(string(b)); err != nil {
+			return nil, err
+		}
 	}
 
 	return &View{
 		template: t,
 		layout:   layout,
-	}
+	}, nil
 }
 
 func (v *View) Render(w http.ResponseWriter, data interface{}) error {
@@ -34,14 +51,9 @@ func (v *View) Render(w http.ResponseWriter, data interface{}) error {
 	return v.template.ExecuteTemplate(w, v.layout, data)
 }
 
-func loadTemplate(filename string) string {
-	f, err := pkger.Open(filename)
+func Must(v *View, err error) *View {
 	if err != nil {
 		panic(err)
 	}
-	b, err := ioutil.ReadAll(f)
-	if err != nil {
-		panic(err)
-	}
-	return string(b)
+	return v
 }

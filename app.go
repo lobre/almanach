@@ -32,10 +32,11 @@ func NewApp(db *DB, logger *log.Logger) *App {
 
 func (app *App) setupRoutes() {
 	app.router.HandleFunc("/", app.withLogs(app.handleIndex()))
+	app.router.HandleFunc("/assets/", app.withLogs(app.handleAssets()))
 }
 
 func (app *App) setupViews() {
-	app.indexView = NewView("base", "/views/index.html")
+	app.indexView = Must(NewView("base", "index"))
 }
 
 func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {

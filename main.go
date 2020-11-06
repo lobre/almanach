@@ -1,5 +1,7 @@
 package main
 
+//go:generate pkger
+
 import (
 	"flag"
 	"fmt"
@@ -32,7 +34,7 @@ func run() error {
 		dbName = flag.String("db-name", "postgres", "database name")
 
 		addr        = flag.String("addr", ":8080", "http server address")
-		openBrowser = flag.Bool("open-browser", true, "open the browser automatically")
+		skipBrowser = flag.Bool("skip-browser", false, "don't open the browser automatically")
 	)
 	flag.Parse()
 
@@ -51,7 +53,7 @@ func run() error {
 	app := NewApp(db, logger)
 	server := &http.Server{Addr: *addr, Handler: app}
 
-	if *openBrowser {
+	if !(*skipBrowser) {
 		host, port, err := net.SplitHostPort(*addr)
 		if err != nil {
 			return err
