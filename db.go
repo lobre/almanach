@@ -2,36 +2,115 @@ package main
 
 import (
 	"database/sql"
+	"os"
 	"time"
 )
+
+const DateLayout = "02-01-2006 15:04:05"
 
 type DB struct {
 	*sql.DB
 }
 
-func Open(connStr string) (*DB, error) {
-	db, err := sql.Open("pgx", connStr)
+func Open(path string) (*DB, bool, error) {
+	var isNew bool
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		_, err := os.Create(path)
+		if err != nil {
+			return nil, isNew, err
+		}
+		isNew = true
+	}
+
+	db, err := sql.Open("sqlite3", path)
 	if err != nil {
-		return nil, err
+		return nil, isNew, err
 	}
 
 	if err := db.Ping(); err != nil {
-		return nil, err
+		return nil, isNew, err
 	}
 
-	return &DB{db}, nil
+	return &DB{db}, isNew, nil
+}
+
+func (db *DB) CreateSchema() error {
+	sql := `CREATE TABLE IF NOT EXISTS events (
+    id INTEGER NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    date TEXT NOT NULL,
+		comment TEXT
+	);`
+
+	stmt, err := db.Prepare(sql)
+	if err != nil {
+		return err
+	}
+
+	_, err = stmt.Exec()
+	if err != nil {
+		return err
+	}
+
+	sql = `CREATE TABLE IF NOT EXISTS subscriptions (
+    event_id INTEGER NOT NULL,
+    subscriber TEXT NOT NULL,
+    here INTEGER NOT NULL,
+    comment TEXT,
+    PRIMARY KEY (event_id, subscriber),
+		FOREIGN KEY (event_id) REFERENCES events(id)
+	)`
+
+	stmt, err = db.Prepare(sql)
+	if err != nil {
+		return err
+	}
+
+	_, err = stmt.Exec()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (db *DB) CreateSampleData() error {
+	// helper function to quickly parse a date
+	// without returning an error
+	date := func(d string) time.Time {
+		t, _ := time.Parse(DateLayout, d)
+		return t
+	}
+
+	events := []Event{
+		Event{
+			Name:    "Festival",
+			Date:    date("02-01-2000 15:00:00"),
+			Comment: "Entire day needed",
+		},
+	}
+
+	for _, e := range events {
+		if _, err := db.insertEvent(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 type Event struct {
-	ID   int
-	Name string
-	Date time.Time
+	ID      int
+	Name    string
+	Date    time.Time
+	Comment string
 }
 
 func (db *DB) getEvents() ([]Event, error) {
 	events := []Event{}
 
-	rows, err := db.Query("SELECT id, name, date FROM events order by id")
+	rows, err := db.Query("SELECT id, name, date, comment FROM events order by id")
 	if err != nil {
 		return nil, err
 	}
@@ -40,37 +119,49 @@ func (db *DB) getEvents() ([]Event, error) {
 	for rows.Next() {
 		var id int
 		var name string
-		var date time.Time
+		var dateStr string
+		var comment string
 
-		err = rows.Scan(&id, &name, &date)
+		err = rows.Scan(&id, &name, &dateStr, &comment)
 		if err != nil {
 			return events, err
 		}
 
-		events = append(events, Event{ID: id, Name: name, Date: date})
+		date, err := time.Parse(DateLayout, dateStr)
+		if err != nil {
+			return events, err
+		}
+
+		events = append(events, Event{ID: id, Name: name, Date: date, Comment: comment})
 	}
 
 	return events, err
 }
 
 func (db *DB) insertEvent(e Event) (int, error) {
-	var id int
-	err := db.QueryRow("INSERT INTO events(name, date) VALUES($1, $2) RETURNING id", e.Name, e.Date).Scan(&id)
+	sql := "INSERT INTO events(name, date, comment) VALUES(?, ?, ?)"
+	res, err := db.Exec(sql, e.Name, e.Date.Format(DateLayout), e.Comment)
 	if err != nil {
 		return 0, err
 	}
-	return id, nil
+	id, err := res.LastInsertId()
+	if err != nil {
+		return 0, nil
+	}
+	return int(id), nil
 }
 
 func (db *DB) updateEvent(e Event) error {
-	if _, err := db.Exec("UPDATE events set name=$1, date=$2 WHERE id=$3", e.Name, e.Date, e.ID); err != nil {
+	sql := "UPDATE events set name=?, date=?, comment=? WHERE id=?"
+	if _, err := db.Exec(sql, e.Name, e.Date, e.Comment, e.ID); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (db *DB) removeEvent(id int) error {
-	if _, err := db.Exec("DELETE FROM events where id = $1", id); err != nil {
+	sql := "DELETE FROM events where id = ?"
+	if _, err := db.Exec(sql, id); err != nil {
 		return err
 	}
 	return nil
@@ -85,7 +176,7 @@ type Subscription struct {
 func (db *DB) getSubscriptions(eventID int) ([]Subscription, error) {
 	subs := []Subscription{}
 
-	rows, err := db.Query("SELECT subscriber, here, comment FROM subscriptions WHERE event_id = $1", eventID)
+	rows, err := db.Query("SELECT subscriber, here, comment FROM subscriptions WHERE event_id = ?", eventID)
 	if err != nil {
 		return nil, err
 	}
@@ -108,26 +199,24 @@ func (db *DB) getSubscriptions(eventID int) ([]Subscription, error) {
 }
 
 func (db *DB) insertSubscription(eventID int, sub Subscription) error {
-	_, err := db.Exec("INSERT INTO subscriptions(event_id, subscriber, here, comment)"+
-		"VALUES($1, $2, $3, $4)", eventID, sub.Subscriber, sub.Here, sub.Comment)
-	if err != nil {
+	sql := "INSERT INTO subscriptions(event_id, subscriber, here, comment) VALUES(?, ?, ?, ?)"
+	if _, err := db.Exec(sql, eventID, sub.Subscriber, sub.Here, sub.Comment); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (db *DB) updateSubscription(eventID int, sub Subscription) error {
-	_, err := db.Exec("UPDATE subscriptions set here = $1, comment = $2"+
-		"WHERE event_id = $3 AND subscriber = $4", sub.Here, sub.Comment, eventID, sub.Subscriber)
-	if err != nil {
+	sql := "UPDATE subscriptions set here = ?, comment = ? WHERE event_id = ? AND subscriber = ?"
+	if _, err := db.Exec(sql, sub.Here, sub.Comment, eventID, sub.Subscriber); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (db *DB) removeSubscription(eventID int, sub string) error {
-	_, err := db.Exec("DELETE FROM subscription where event_id = $1 AND subscriber = $2", eventID, sub)
-	if err != nil {
+	sql := "DELETE FROM subscription where event_id = ? AND subscriber = ?"
+	if _, err := db.Exec(sql, eventID, sub); err != nil {
 		return err
 	}
 	return nil

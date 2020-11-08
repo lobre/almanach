@@ -11,44 +11,49 @@ import (
 	"os"
 	"time"
 
-	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/markbates/pkger"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/browser"
 )
 
 func main() {
-	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
+	logger := log.New(os.Stdout, "", log.Lshortfile|log.Ldate|log.Ltime)
+	if err := run(logger); err != nil {
+		logger.Printf("%s\n", err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
+func run(logger *log.Logger) error {
 	pkger.Include("/views")
 
 	var (
-		dbHost = flag.String("db-host", "localhost", "database host")
-		dbPort = flag.Int("db-port", 5432, "database port")
-		dbUser = flag.String("db-user", "postgres", "database user")
-		dbPass = flag.String("db-pass", "postgres", "database password")
-		dbName = flag.String("db-name", "postgres", "database name")
-
+		dbPath      = flag.String("db", "almanach.db", "sqlite database")
 		addr        = flag.String("addr", ":8080", "http server address")
 		skipBrowser = flag.Bool("skip-browser", false, "don't open the browser automatically")
+		sampleData  = flag.Bool("sample-data", false, "insert sample data")
 	)
 	flag.Parse()
 
-	connStr := fmt.Sprintf("host=%s port=%d user=%s "+
-		"password=%s dbname=%s sslmode=disable",
-		*dbHost, *dbPort, *dbUser, *dbPass, *dbName)
-
-	db, err := Open(connStr)
+	db, isNew, err := Open(*dbPath)
 	if err != nil {
 		return fmt.Errorf("cannot connect to the db: %w", err)
 	}
 	defer db.Close()
 
-	logger := log.New(os.Stdout, "", log.Lshortfile|log.Ldate|log.Ltime)
+	if isNew {
+		logger.Print("new database created, creating schema")
+		if err := db.CreateSchema(); err != nil {
+			return fmt.Errorf("cannot create db schema: %w", err)
+		}
+	}
+
+	if *sampleData {
+		logger.Print("insert sample data")
+		if err := db.CreateSampleData(); err != nil {
+			return fmt.Errorf("cannot insert sample data", err)
+		}
+	}
 
 	app := NewApp(db, logger)
 	server := &http.Server{Addr: *addr, Handler: app}
