@@ -9,7 +9,9 @@
   </head>
   <body>
     <header>
+    {{if not .IsHome}}
       <a href="/">Accueil</a>
+    {{end}}
     </header>
     <main>
       {{template "main" .}}

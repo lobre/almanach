@@ -16,6 +16,7 @@ func (app *App) handleIndex() http.HandlerFunc {
 		}
 
 		app.indexView.Render(w, map[string]interface{}{
+			"IsHome": true,
 			"Events": events,
 		})
 	}
