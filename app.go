@@ -17,6 +17,7 @@ type App struct {
 	logger *log.Logger
 
 	indexView *View
+	newView   *View
 }
 
 func NewApp(db *DB, logger *log.Logger) *App {
@@ -32,11 +33,13 @@ func NewApp(db *DB, logger *log.Logger) *App {
 
 func (app *App) setupRoutes() {
 	app.router.HandleFunc("/", app.withLogs(app.handleIndex()))
+	app.router.HandleFunc("/new", app.withLogs(app.handleNew()))
 	app.router.HandleFunc("/assets/", app.withLogs(app.handleAssets()))
 }
 
 func (app *App) setupViews() {
 	app.indexView = Must(NewView("base", "index"))
+	app.newView = Must(NewView("base", "new"))
 }
 
 func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {

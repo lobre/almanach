@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-const DateLayout = "02-01-2006 15:04:05"
-
 type DB struct {
 	*sql.DB
 }
@@ -39,8 +37,8 @@ func (db *DB) CreateSchema() error {
 	sql := `CREATE TABLE IF NOT EXISTS events (
     id INTEGER NOT NULL PRIMARY KEY,
     name TEXT NOT NULL,
-    date TEXT NOT NULL,
-		comment TEXT
+    date INTEGER NOT NULL,
+	comment TEXT
 	);`
 
 	stmt, err := db.Prepare(sql)
@@ -59,7 +57,7 @@ func (db *DB) CreateSchema() error {
     here INTEGER NOT NULL,
     comment TEXT,
     PRIMARY KEY (event_id, subscriber),
-		FOREIGN KEY (event_id) REFERENCES events(id)
+	FOREIGN KEY (event_id) REFERENCES events(id)
 	)`
 
 	stmt, err = db.Prepare(sql)
@@ -70,31 +68,6 @@ func (db *DB) CreateSchema() error {
 	_, err = stmt.Exec()
 	if err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func (db *DB) CreateSampleData() error {
-	// helper function to quickly parse a date
-	// without returning an error
-	date := func(d string) time.Time {
-		t, _ := time.Parse(DateLayout, d)
-		return t
-	}
-
-	events := []Event{
-		Event{
-			Name:    "Festival",
-			Date:    date("02-01-2000 15:00:00"),
-			Comment: "Entire day needed",
-		},
-	}
-
-	for _, e := range events {
-		if _, err := db.insertEvent(e); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -119,20 +92,20 @@ func (db *DB) getEvents() ([]Event, error) {
 	for rows.Next() {
 		var id int
 		var name string
-		var dateStr string
+		var timestamp int64
 		var comment string
 
-		err = rows.Scan(&id, &name, &dateStr, &comment)
+		err = rows.Scan(&id, &name, &timestamp, &comment)
 		if err != nil {
 			return events, err
 		}
 
-		date, err := time.Parse(DateLayout, dateStr)
-		if err != nil {
-			return events, err
-		}
-
-		events = append(events, Event{ID: id, Name: name, Date: date, Comment: comment})
+		events = append(events, Event{
+			ID:      id,
+			Name:    name,
+			Date:    time.Unix(timestamp, 0),
+			Comment: comment,
+		})
 	}
 
 	return events, err
@@ -140,7 +113,7 @@ func (db *DB) getEvents() ([]Event, error) {
 
 func (db *DB) insertEvent(e Event) (int, error) {
 	sql := "INSERT INTO events(name, date, comment) VALUES(?, ?, ?)"
-	res, err := db.Exec(sql, e.Name, e.Date.Format(DateLayout), e.Comment)
+	res, err := db.Exec(sql, e.Name, e.Date.Unix(), e.Comment)
 	if err != nil {
 		return 0, err
 	}
@@ -153,7 +126,7 @@ func (db *DB) insertEvent(e Event) (int, error) {
 
 func (db *DB) updateEvent(e Event) error {
 	sql := "UPDATE events set name=?, date=?, comment=? WHERE id=?"
-	if _, err := db.Exec(sql, e.Name, e.Date, e.Comment, e.ID); err != nil {
+	if _, err := db.Exec(sql, e.Name, e.Date.Unix(), e.Comment, e.ID); err != nil {
 		return err
 	}
 	return nil

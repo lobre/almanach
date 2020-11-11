@@ -31,7 +31,6 @@ func run(logger *log.Logger) error {
 		dbPath      = flag.String("db", "almanach.db", "sqlite database")
 		addr        = flag.String("addr", ":8080", "http server address")
 		skipBrowser = flag.Bool("skip-browser", false, "don't open the browser automatically")
-		sampleData  = flag.Bool("sample-data", false, "insert sample data")
 	)
 	flag.Parse()
 
@@ -45,13 +44,6 @@ func run(logger *log.Logger) error {
 		logger.Print("new database created, creating schema")
 		if err := db.CreateSchema(); err != nil {
 			return fmt.Errorf("cannot create db schema: %w", err)
-		}
-	}
-
-	if *sampleData {
-		logger.Print("insert sample data")
-		if err := db.CreateSampleData(); err != nil {
-			return fmt.Errorf("cannot insert sample data", err)
 		}
 	}
 

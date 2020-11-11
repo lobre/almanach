@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
+	"time"
 
 	"github.com/markbates/pkger"
 )
@@ -22,7 +24,9 @@ func NewView(layout string, views ...string) (*View, error) {
 		paths = append(paths, filepath.Join("/views", v+".html"))
 	}
 
-	t := template.New(layout)
+	t := template.New(layout).Funcs(template.FuncMap{
+		"date": date,
+	})
 
 	for _, p := range paths {
 		f, err := pkger.Open(p)
@@ -56,4 +60,12 @@ func Must(v *View, err error) *View {
 		panic(err)
 	}
 	return v
+}
+
+func date(d time.Time) string {
+	months := []string{
+		"Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+		"Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
+	}
+	return fmt.Sprintf("%d %s %d", d.Day(), months[d.Month()-1], d.Year())
 }

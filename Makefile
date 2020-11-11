@@ -1,4 +1,4 @@
-.PHONY: lin win gen
+.PHONY: lin win gen clean
 
 lin: gen
 	@echo "==> Building App..." && \
@@ -11,3 +11,8 @@ win: gen
 gen:
 	@echo "==> Generating files..." && \
 	go generate
+
+clean:
+	@echo "==> Cleaning..." && \
+	rm -f almanach almanach.exe almanach.db pkged.go
+

@@ -1,10 +1,19 @@
-{{define "title"}}Home{{end}}
+{{define "title"}}Accueil{{end}}
 
 {{define "main"}}
-<h2>Here is a list of events</h2>
-<ul>
-  {{range .Events}}
-  <li><a href="/events/{{.ID}}">{{.Name}}</a></li>
+  <h1>Liste des événements</h1>
+
+  {{if not .Events}}
+    Pas d'événement prévu pour le moment...
+  {{else}}
+    <ul>
+      {{range .Events}}
+        <li><a href="/events/{{.ID}}">{{.Name}} / {{.Date | date}}</a></li>
+      {{end}}
+    </ul>
   {{end}}
-</ul>
+
+  <div>
+    <a href="/new">Créer un événement</a>
+  </div>
 {{end}}
